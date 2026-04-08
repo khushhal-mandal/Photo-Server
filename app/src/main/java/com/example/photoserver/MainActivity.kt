@@ -15,6 +15,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,12 +26,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.work.*
 import coil.compose.AsyncImage
 import com.example.photoserver.ui.theme.PhotoServerTheme
+import java.text.SimpleDateFormat
+import java.util.*
 import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
@@ -105,6 +114,7 @@ fun PhotoGalleryScreen() {
     val database = remember { PhotoDatabase.getDatabase(context) }
     val photosWithTags by database.photoDao().getAllPhotosWithTags().collectAsState(initial = emptyList())
     var showTags by remember { mutableStateOf(true) }
+    var selectedPhoto by remember { mutableStateOf<PhotoWithTags?>(null) }
 
     Scaffold(
         topBar = {
@@ -134,19 +144,31 @@ fun PhotoGalleryScreen() {
             contentPadding = PaddingValues(4.dp)
         ) {
             items(photosWithTags) { item ->
-                PhotoItem(item, showTags)
+                PhotoItem(
+                    item = item,
+                    showTags = showTags,
+                    onClick = { selectedPhoto = item }
+                )
             }
         }
+    }
+
+    selectedPhoto?.let { photoWithTags ->
+        FullScreenImageOverlay(
+            photoWithTags = photoWithTags,
+            onDismiss = { selectedPhoto = null }
+        )
     }
 }
 
 @Composable
-fun PhotoItem(item: PhotoWithTags, showTags: Boolean) {
+fun PhotoItem(item: PhotoWithTags, showTags: Boolean, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .padding(4.dp)
             .fillMaxWidth()
-            .aspectRatio(1f),
+            .aspectRatio(1f)
+            .clickable(onClick = onClick),
         shape = MaterialTheme.shapes.medium
     ) {
         Box {
@@ -165,9 +187,16 @@ fun PhotoItem(item: PhotoWithTags, showTags: Boolean) {
                         .padding(4.dp)
                         .fillMaxWidth()
                 ) {
-                    item.tags.forEach { tag ->
+                    item.tags.take(2).forEach { tag ->
                         Text(
                             text = "${tag.label} (${(tag.confidence * 100).toInt()}%)",
+                            color = Color.White,
+                            fontSize = 10.sp
+                        )
+                    }
+                    if (item.tags.size > 2) {
+                        Text(
+                            text = "+${item.tags.size - 2} more",
                             color = Color.White,
                             fontSize = 10.sp
                         )
@@ -189,5 +218,98 @@ fun PhotoItem(item: PhotoWithTags, showTags: Boolean) {
                 }
             }
         }
+    }
+}
+
+@Composable
+fun FullScreenImageOverlay(photoWithTags: PhotoWithTags, onDismiss: () -> Unit) {
+    var showInfo by remember { mutableStateOf(false) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
+            AsyncImage(
+                model = photoWithTags.photo.uri,
+                contentDescription = photoWithTags.photo.name,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { onDismiss() },
+                contentScale = ContentScale.Fit
+            )
+
+            // Close Button
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(16.dp)
+                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+            ) {
+                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+            }
+
+            // Info Button
+            IconButton(
+                onClick = { showInfo = true },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+            ) {
+                Icon(Icons.Default.Info, contentDescription = "Info", tint = Color.White)
+            }
+        }
+    }
+
+    if (showInfo) {
+        ImageInfoDialog(
+            photoWithTags = photoWithTags,
+            onDismiss = { showInfo = false }
+        )
+    }
+}
+
+@Composable
+fun ImageInfoDialog(photoWithTags: PhotoWithTags, onDismiss: () -> Unit) {
+    val dateFormat = remember { SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()) }
+    val dateString = dateFormat.format(Date(photoWithTags.photo.dateAdded))
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Image Details") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                InfoRow(label = "Name", value = photoWithTags.photo.name)
+                InfoRow(label = "Date", value = dateString)
+                InfoRow(label = "URI", value = photoWithTags.photo.uri)
+                
+                if (photoWithTags.tags.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Tags:", fontWeight = FontWeight.Bold)
+                    photoWithTags.tags.sortedByDescending { it.confidence }.forEach { tag ->
+                        Text("- ${tag.label} (${(tag.confidence * 100).toInt()}%)")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
+}
+
+@Composable
+fun InfoRow(label: String, value: String) {
+    Column {
+        Text(text = label, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+        Text(text = value, style = MaterialTheme.typography.bodySmall)
     }
 }
