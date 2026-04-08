@@ -1,0 +1,22 @@
+ping <YOUR_PHONE_IP_ADDRESS>
+curl http://<YOUR_PHONE_IP_ADDRESS>:8080/info
+curl -X POST http://<YOUR_PHONE_IP_ADDRESS>:8080/mcp \
+     -H "Content-Type: application/json" \
+     -d '{"jsonrpc": "2.0", "id": "1", "method": "tools/list"}'
+
+curl -X POST http://<YOUR_PHONE_IP_ADDRESS>:8080/mcp \
+     -H "Content-Type: application/json" \
+     -d '{
+       "jsonrpc": "2.0",
+       "id": "2",
+       "method": "tools/call",
+       "params": {
+         "name": "search_photos",
+         "arguments": {
+           "tag": "mountain"
+         }
+       }
+     }'
+
+
+    npx @modelcontextprotocol/inspector

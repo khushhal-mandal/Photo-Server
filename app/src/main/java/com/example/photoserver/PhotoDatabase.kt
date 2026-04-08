@@ -60,6 +60,15 @@ interface PhotoDao {
 
     @Query("SELECT id FROM photos WHERE id NOT IN (SELECT DISTINCT photoId FROM tags)")
     suspend fun getUntaggedPhotoIds(): List<Long>
+
+    @Transaction
+    @Query("""
+        SELECT DISTINCT p.* FROM photos p 
+        INNER JOIN tags t ON p.id = t.photoId 
+        WHERE t.label LIKE '%' || :query || '%'
+        ORDER BY p.dateAdded DESC
+    """)
+    suspend fun searchPhotosByTag(query: String): List<PhotoWithTags>
 }
 
 @Database(entities = [PhotoEntity::class, TagEntity::class], version = 1)
