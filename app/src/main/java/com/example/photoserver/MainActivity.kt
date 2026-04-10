@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -124,9 +123,9 @@ class MainActivity : ComponentActivity() {
 fun PhotoGalleryScreen() {
     val context = LocalContext.current
     val database = remember { PhotoDatabase.getDatabase(context) }
-    val photosWithTags by database.photoDao().getAllPhotosWithTags().collectAsState(initial = emptyList())
+    val photos by database.photoDao().getAllPhotos().collectAsState(initial = emptyList())
     var showTags by remember { mutableStateOf(true) }
-    var selectedPhoto by remember { mutableStateOf<PhotoWithTags?>(null) }
+    var selectedPhoto by remember { mutableStateOf<PhotoEntity?>(null) }
 
     Scaffold(
         topBar = {
@@ -155,26 +154,29 @@ fun PhotoGalleryScreen() {
                 .fillMaxSize(),
             contentPadding = PaddingValues(4.dp)
         ) {
-            items(photosWithTags) { item ->
+            items(photos) { photo ->
                 PhotoItem(
-                    item = item,
+                    photo = photo,
                     showTags = showTags,
-                    onClick = { selectedPhoto = item }
+                    onClick = { selectedPhoto = photo }
                 )
             }
         }
     }
 
-    selectedPhoto?.let { photoWithTags ->
+    selectedPhoto?.let { photo ->
         FullScreenImageOverlay(
-            photoWithTags = photoWithTags,
+            photo = photo,
             onDismiss = { selectedPhoto = null }
         )
     }
 }
 
 @Composable
-fun PhotoItem(item: PhotoWithTags, showTags: Boolean, onClick: () -> Unit) {
+fun PhotoItem(photo: PhotoEntity, showTags: Boolean, onClick: () -> Unit) {
+    val tags = listOfNotNull(photo.tag1, photo.tag2, photo.tag3, photo.tag4, photo.tag5)
+    val isTagged = tags.isNotEmpty()
+
     Card(
         modifier = Modifier
             .padding(4.dp)
@@ -185,13 +187,13 @@ fun PhotoItem(item: PhotoWithTags, showTags: Boolean, onClick: () -> Unit) {
     ) {
         Box {
             AsyncImage(
-                model = item.photo.uri,
-                contentDescription = item.photo.name,
+                model = photo.uri,
+                contentDescription = photo.name,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
             
-            if (showTags && item.tags.isNotEmpty()) {
+            if (showTags) {
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
@@ -199,34 +201,28 @@ fun PhotoItem(item: PhotoWithTags, showTags: Boolean, onClick: () -> Unit) {
                         .padding(4.dp)
                         .fillMaxWidth()
                 ) {
-                    item.tags.take(2).forEach { tag ->
+                    if (isTagged) {
+                        tags.take(2).forEach { tag ->
+                            Text(
+                                text = tag,
+                                color = Color.White,
+                                fontSize = 10.sp
+                            )
+                        }
+                        if (tags.size > 2) {
+                            Text(
+                                text = "+${tags.size - 2} more",
+                                color = Color.White,
+                                fontSize = 10.sp
+                            )
+                        }
+                    } else {
                         Text(
-                            text = "${tag.label} (${(tag.confidence * 100).toInt()}%)",
+                            text = "Tagging...",
                             color = Color.White,
                             fontSize = 10.sp
                         )
                     }
-                    if (item.tags.size > 2) {
-                        Text(
-                            text = "+${item.tags.size - 2} more",
-                            color = Color.White,
-                            fontSize = 10.sp
-                        )
-                    }
-                }
-            } else if (showTags && item.tags.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .background(Color.Black.copy(alpha = 0.6f))
-                        .padding(4.dp)
-                        .fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Tagging...",
-                        color = Color.White,
-                        fontSize = 10.sp
-                    )
                 }
             }
         }
@@ -234,7 +230,7 @@ fun PhotoItem(item: PhotoWithTags, showTags: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-fun FullScreenImageOverlay(photoWithTags: PhotoWithTags, onDismiss: () -> Unit) {
+fun FullScreenImageOverlay(photo: PhotoEntity, onDismiss: () -> Unit) {
     var showInfo by remember { mutableStateOf(false) }
 
     Dialog(
@@ -247,8 +243,8 @@ fun FullScreenImageOverlay(photoWithTags: PhotoWithTags, onDismiss: () -> Unit) 
                 .background(Color.Black)
         ) {
             AsyncImage(
-                model = photoWithTags.photo.uri,
-                contentDescription = photoWithTags.photo.name,
+                model = photo.uri,
+                contentDescription = photo.name,
                 modifier = Modifier
                     .fillMaxSize()
                     .clickable { onDismiss() },
@@ -281,31 +277,32 @@ fun FullScreenImageOverlay(photoWithTags: PhotoWithTags, onDismiss: () -> Unit) 
 
     if (showInfo) {
         ImageInfoDialog(
-            photoWithTags = photoWithTags,
+            photo = photo,
             onDismiss = { showInfo = false }
         )
     }
 }
 
 @Composable
-fun ImageInfoDialog(photoWithTags: PhotoWithTags, onDismiss: () -> Unit) {
+fun ImageInfoDialog(photo: PhotoEntity, onDismiss: () -> Unit) {
     val dateFormat = remember { SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()) }
-    val dateString = dateFormat.format(Date(photoWithTags.photo.dateAdded))
+    val dateString = dateFormat.format(Date(photo.dateAdded * 1000))
+    val tags = listOfNotNull(photo.tag1, photo.tag2, photo.tag3, photo.tag4, photo.tag5)
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Image Details") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                InfoRow(label = "Name", value = photoWithTags.photo.name)
+                InfoRow(label = "Name", value = photo.name)
                 InfoRow(label = "Date", value = dateString)
-                InfoRow(label = "URI", value = photoWithTags.photo.uri)
+                InfoRow(label = "URI", value = photo.uri)
                 
-                if (photoWithTags.tags.isNotEmpty()) {
+                if (tags.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("Tags:", fontWeight = FontWeight.Bold)
-                    photoWithTags.tags.sortedByDescending { it.confidence }.forEach { tag ->
-                        Text("- ${tag.label} (${(tag.confidence * 100).toInt()}%)")
+                    tags.forEach { tag ->
+                        Text("- $tag")
                     }
                 }
             }

@@ -18,11 +18,11 @@ class PhotoTaggingWorker(
         repository.refreshPhotos()
 
         // 2. Identify untagged photos
-        val untaggedIds = dao.getUntaggedPhotoIds()
+        val untaggedPhotos = dao.getUntaggedPhotos()
 
         // 3. Tag them one by one
-        untaggedIds.forEach { id ->
-            repository.tagPhoto(id)
+        untaggedPhotos.forEach { photo ->
+            repository.tagPhoto(photo.id)
         }
 
         return Result.success()

@@ -151,10 +151,11 @@ class McpServerService : Service() {
                                     put("type", "text")
                                     put("text", "Found ${photos.size} photos for tag '$tag'.")
                                 }
-                                photos.forEach { photoWithTags ->
+                                photos.forEach { photo ->
+                                    val tagsStr = listOfNotNull(photo.tag1, photo.tag2, photo.tag3, photo.tag4, photo.tag5).joinToString(", ")
                                     addJsonObject {
                                         put("type", "text")
-                                        put("text", "Photo: ${photoWithTags.photo.name}, Date: ${java.util.Date(photoWithTags.photo.dateAdded)}, URI: ${photoWithTags.photo.uri}")
+                                        put("text", "Photo: ${photo.name}, Tags: [$tagsStr], Date: ${java.util.Date(photo.dateAdded * 1000)}, URI: ${photo.uri}")
                                     }
                                 }
                             }

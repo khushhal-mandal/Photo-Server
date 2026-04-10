@@ -9,35 +9,13 @@ data class PhotoEntity(
     @PrimaryKey val id: Long,
     val uri: String,
     val name: String,
-    val dateAdded: Long
-)
-
-@Entity(
-    tableName = "tags",
-    foreignKeys = [
-        ForeignKey(
-            entity = PhotoEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["photoId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ],
-    indices = [Index("photoId")]
-)
-data class TagEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val photoId: Long,
-    val label: String,
-    val confidence: Float
-)
-
-data class PhotoWithTags(
-    @Embedded val photo: PhotoEntity,
-    @Relation(
-        parentColumn = "id",
-        entityColumn = "photoId"
-    )
-    val tags: List<TagEntity>
+    val dateAdded: Long,
+    val tag1: String? = null,
+    val tag2: String? = null,
+    val tag3: String? = null,
+    val tag4: String? = null,
+    val tag5: String? = null,
+    val metadata: String? = null
 )
 
 @Dao
@@ -45,33 +23,31 @@ interface PhotoDao {
     @Query("SELECT * FROM photos ORDER BY dateAdded DESC")
     fun getAllPhotos(): Flow<List<PhotoEntity>>
 
-    @Transaction
-    @Query("SELECT * FROM photos ORDER BY dateAdded DESC")
-    fun getAllPhotosWithTags(): Flow<List<PhotoWithTags>>
-
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertPhoto(photo: PhotoEntity): Long
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertTags(tags: List<TagEntity>)
+    @Update
+    suspend fun updatePhoto(photo: PhotoEntity)
 
     @Query("SELECT * FROM photos WHERE id = :id")
     suspend fun getPhotoById(id: Long): PhotoEntity?
 
-    @Query("SELECT id FROM photos WHERE id NOT IN (SELECT DISTINCT photoId FROM tags)")
-    suspend fun getUntaggedPhotoIds(): List<Long>
+    @Query("SELECT * FROM photos WHERE tag1 IS NULL AND tag2 IS NULL AND tag3 IS NULL AND tag4 IS NULL AND tag5 IS NULL")
+    suspend fun getUntaggedPhotos(): List<PhotoEntity>
 
-    @Transaction
     @Query("""
-        SELECT DISTINCT p.* FROM photos p 
-        INNER JOIN tags t ON p.id = t.photoId 
-        WHERE t.label LIKE '%' || :query || '%'
-        ORDER BY p.dateAdded DESC
+        SELECT * FROM photos 
+        WHERE tag1 LIKE '%' || :query || '%' 
+           OR tag2 LIKE '%' || :query || '%' 
+           OR tag3 LIKE '%' || :query || '%' 
+           OR tag4 LIKE '%' || :query || '%' 
+           OR tag5 LIKE '%' || :query || '%'
+        ORDER BY dateAdded DESC
     """)
-    suspend fun searchPhotosByTag(query: String): List<PhotoWithTags>
+    suspend fun searchPhotosByTag(query: String): List<PhotoEntity>
 }
 
-@Database(entities = [PhotoEntity::class, TagEntity::class], version = 1)
+@Database(entities = [PhotoEntity::class], version = 2, exportSchema = false)
 abstract class PhotoDatabase : RoomDatabase() {
     abstract fun photoDao(): PhotoDao
 
@@ -85,7 +61,9 @@ abstract class PhotoDatabase : RoomDatabase() {
                     context.applicationContext,
                     PhotoDatabase::class.java,
                     "photo_database"
-                ).build()
+                )
+                .fallbackToDestructiveMigration() // Simplified for this refactoring
+                .build()
                 INSTANCE = instance
                 instance
             }

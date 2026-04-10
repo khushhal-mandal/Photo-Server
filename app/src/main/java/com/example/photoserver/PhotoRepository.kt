@@ -11,7 +11,6 @@ class PhotoRepository(private val context: Context, private val database: PhotoD
     private val photoDao = database.photoDao()
 
     val allPhotos: Flow<List<PhotoEntity>> = photoDao.getAllPhotos()
-    val allPhotosWithTags: Flow<List<PhotoWithTags>> = photoDao.getAllPhotosWithTags()
 
     suspend fun refreshPhotos() {
         withContext(Dispatchers.IO) {
@@ -53,7 +52,14 @@ class PhotoRepository(private val context: Context, private val database: PhotoD
         val helper = ImageLabelingHelper(context)
         val tags = helper.labelImage(android.net.Uri.parse(photo.uri))
         if (tags.isNotEmpty()) {
-            photoDao.insertTags(tags.map { it.copy(photoId = photoId) })
+            val updatedPhoto = photo.copy(
+                tag1 = tags.getOrNull(0),
+                tag2 = tags.getOrNull(1),
+                tag3 = tags.getOrNull(2),
+                tag4 = tags.getOrNull(3),
+                tag5 = tags.getOrNull(4)
+            )
+            photoDao.updatePhoto(updatedPhoto)
         }
     }
 }
