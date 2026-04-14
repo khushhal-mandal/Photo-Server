@@ -4,7 +4,7 @@ curl -X POST http://<YOUR_PHONE_IP_ADDRESS>:8080/mcp \
      -H "Content-Type: application/json" \
      -d '{"jsonrpc": "2.0", "id": "1", "method": "tools/list"}'
 
-curl -X POST http://<YOUR_PHONE_IP_ADDRESS>:8080/mcp \
+curl -X POST http://192.168.1.66:8080/mcp \
      -H "Content-Type: application/json" \
      -d '{
        "jsonrpc": "2.0",
@@ -13,7 +13,7 @@ curl -X POST http://<YOUR_PHONE_IP_ADDRESS>:8080/mcp \
        "params": {
          "name": "search_photos",
          "arguments": {
-           "tag": "mountain"
+           "tag": "vehicle"
          }
        }
      }'

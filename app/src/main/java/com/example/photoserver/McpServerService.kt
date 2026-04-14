@@ -152,10 +152,17 @@ class McpServerService : Service() {
                                     put("text", "Found ${photos.size} photos for tag '$tag'.")
                                 }
                                 photos.forEach { photo ->
-                                    val tagsStr = listOfNotNull(photo.tag1, photo.tag2, photo.tag3, photo.tag4, photo.tag5).joinToString(", ")
+                                    val tagsWithConfidence = listOfNotNull(
+                                        photo.tag1?.let { "$it (${(photo.tag1Confidence?.times(100))?.toInt()}%)" },
+                                        photo.tag2?.let { "$it (${(photo.tag2Confidence?.times(100))?.toInt()}%)" },
+                                        photo.tag3?.let { "$it (${(photo.tag3Confidence?.times(100))?.toInt()}%)" },
+                                        photo.tag4?.let { "$it (${(photo.tag4Confidence?.times(100))?.toInt()}%)" },
+                                        photo.tag5?.let { "$it (${(photo.tag5Confidence?.times(100))?.toInt()}%)" }
+                                    ).joinToString(", ")
+                                    
                                     addJsonObject {
                                         put("type", "text")
-                                        put("text", "Photo: ${photo.name}, Tags: [$tagsStr], Date: ${java.util.Date(photo.dateAdded * 1000)}, URI: ${photo.uri}")
+                                        put("text", "Photo: ${photo.name}, Tags: [$tagsWithConfidence], Date: ${java.util.Date(photo.dateAdded * 1000)}, URI: ${photo.uri}")
                                     }
                                 }
                             }

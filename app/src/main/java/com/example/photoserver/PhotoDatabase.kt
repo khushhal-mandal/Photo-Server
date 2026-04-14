@@ -11,10 +11,15 @@ data class PhotoEntity(
     val name: String,
     val dateAdded: Long,
     val tag1: String? = null,
+    val tag1Confidence: Float? = null,
     val tag2: String? = null,
+    val tag2Confidence: Float? = null,
     val tag3: String? = null,
+    val tag3Confidence: Float? = null,
     val tag4: String? = null,
+    val tag4Confidence: Float? = null,
     val tag5: String? = null,
+    val tag5Confidence: Float? = null,
     val metadata: String? = null
 )
 
@@ -47,7 +52,7 @@ interface PhotoDao {
     suspend fun searchPhotosByTag(query: String): List<PhotoEntity>
 }
 
-@Database(entities = [PhotoEntity::class], version = 2, exportSchema = false)
+@Database(entities = [PhotoEntity::class], version = 3, exportSchema = false)
 abstract class PhotoDatabase : RoomDatabase() {
     abstract fun photoDao(): PhotoDao
 
@@ -62,7 +67,7 @@ abstract class PhotoDatabase : RoomDatabase() {
                     PhotoDatabase::class.java,
                     "photo_database"
                 )
-                .fallbackToDestructiveMigration() // Simplified for this refactoring
+                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance

@@ -50,14 +50,19 @@ class PhotoRepository(private val context: Context, private val database: PhotoD
     suspend fun tagPhoto(photoId: Long) {
         val photo = photoDao.getPhotoById(photoId) ?: return
         val helper = ImageLabelingHelper(context)
-        val tags = helper.labelImage(android.net.Uri.parse(photo.uri))
-        if (tags.isNotEmpty()) {
+        val labels = helper.labelImage(android.net.Uri.parse(photo.uri))
+        if (labels.isNotEmpty()) {
             val updatedPhoto = photo.copy(
-                tag1 = tags.getOrNull(0),
-                tag2 = tags.getOrNull(1),
-                tag3 = tags.getOrNull(2),
-                tag4 = tags.getOrNull(3),
-                tag5 = tags.getOrNull(4)
+                tag1 = labels.getOrNull(0)?.text,
+                tag1Confidence = labels.getOrNull(0)?.confidence,
+                tag2 = labels.getOrNull(1)?.text,
+                tag2Confidence = labels.getOrNull(1)?.confidence,
+                tag3 = labels.getOrNull(2)?.text,
+                tag3Confidence = labels.getOrNull(2)?.confidence,
+                tag4 = labels.getOrNull(3)?.text,
+                tag4Confidence = labels.getOrNull(3)?.confidence,
+                tag5 = labels.getOrNull(4)?.text,
+                tag5Confidence = labels.getOrNull(4)?.confidence
             )
             photoDao.updatePhoto(updatedPhoto)
         }

@@ -174,8 +174,14 @@ fun PhotoGalleryScreen() {
 
 @Composable
 fun PhotoItem(photo: PhotoEntity, showTags: Boolean, onClick: () -> Unit) {
-    val tags = listOfNotNull(photo.tag1, photo.tag2, photo.tag3, photo.tag4, photo.tag5)
-    val isTagged = tags.isNotEmpty()
+    val tagsWithConfidence = listOfNotNull(
+        photo.tag1?.let { it to photo.tag1Confidence },
+        photo.tag2?.let { it to photo.tag2Confidence },
+        photo.tag3?.let { it to photo.tag3Confidence },
+        photo.tag4?.let { it to photo.tag4Confidence },
+        photo.tag5?.let { it to photo.tag5Confidence }
+    )
+    val isTagged = tagsWithConfidence.isNotEmpty()
 
     Card(
         modifier = Modifier
@@ -202,16 +208,17 @@ fun PhotoItem(photo: PhotoEntity, showTags: Boolean, onClick: () -> Unit) {
                         .fillMaxWidth()
                 ) {
                     if (isTagged) {
-                        tags.take(2).forEach { tag ->
+                        tagsWithConfidence.take(2).forEach { (tag, confidence) ->
+                            val confidenceStr = confidence?.let { " (${(it * 100).toInt()}%)" } ?: ""
                             Text(
-                                text = tag,
+                                text = "$tag$confidenceStr",
                                 color = Color.White,
                                 fontSize = 10.sp
                             )
                         }
-                        if (tags.size > 2) {
+                        if (tagsWithConfidence.size > 2) {
                             Text(
-                                text = "+${tags.size - 2} more",
+                                text = "+${tagsWithConfidence.size - 2} more",
                                 color = Color.White,
                                 fontSize = 10.sp
                             )
@@ -287,7 +294,13 @@ fun FullScreenImageOverlay(photo: PhotoEntity, onDismiss: () -> Unit) {
 fun ImageInfoDialog(photo: PhotoEntity, onDismiss: () -> Unit) {
     val dateFormat = remember { SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()) }
     val dateString = dateFormat.format(Date(photo.dateAdded * 1000))
-    val tags = listOfNotNull(photo.tag1, photo.tag2, photo.tag3, photo.tag4, photo.tag5)
+    val tagsWithConfidence = listOfNotNull(
+        photo.tag1?.let { it to photo.tag1Confidence },
+        photo.tag2?.let { it to photo.tag2Confidence },
+        photo.tag3?.let { it to photo.tag3Confidence },
+        photo.tag4?.let { it to photo.tag4Confidence },
+        photo.tag5?.let { it to photo.tag5Confidence }
+    )
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -298,11 +311,12 @@ fun ImageInfoDialog(photo: PhotoEntity, onDismiss: () -> Unit) {
                 InfoRow(label = "Date", value = dateString)
                 InfoRow(label = "URI", value = photo.uri)
                 
-                if (tags.isNotEmpty()) {
+                if (tagsWithConfidence.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("Tags:", fontWeight = FontWeight.Bold)
-                    tags.forEach { tag ->
-                        Text("- $tag")
+                    tagsWithConfidence.forEach { (tag, confidence) ->
+                        val confidenceStr = confidence?.let { " (${(it * 100).toInt()}%)" } ?: ""
+                        Text("- $tag$confidenceStr")
                     }
                 }
             }
