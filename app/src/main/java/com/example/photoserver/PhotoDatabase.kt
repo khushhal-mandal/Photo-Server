@@ -10,6 +10,8 @@ data class PhotoEntity(
     val uri: String,
     val name: String,
     val dateAdded: Long,
+    val location: String? = null,
+    val timeOfDay: String? = null,
     val tag1: String? = null,
     val tag1Confidence: Float? = null,
     val tag2: String? = null,
@@ -42,17 +44,39 @@ interface PhotoDao {
 
     @Query("""
         SELECT * FROM photos 
+        WHERE (:tagQuery IS NULL OR 
+               tag1 LIKE '%' || :tagQuery || '%' OR 
+               tag2 LIKE '%' || :tagQuery || '%' OR 
+               tag3 LIKE '%' || :tagQuery || '%' OR 
+               tag4 LIKE '%' || :tagQuery || '%' OR 
+               tag5 LIKE '%' || :tagQuery || '%' OR
+               location LIKE '%' || :tagQuery || '%')
+          AND (:timeOfDay IS NULL OR timeOfDay = :timeOfDay)
+          AND (:startTime IS NULL OR dateAdded >= :startTime)
+          AND (:endTime IS NULL OR dateAdded <= :endTime)
+        ORDER BY dateAdded DESC
+    """)
+    suspend fun searchPhotos(
+        tagQuery: String? = null,
+        timeOfDay: String? = null,
+        startTime: Long? = null,
+        endTime: Long? = null
+    ): List<PhotoEntity>
+
+    @Query("""
+        SELECT * FROM photos 
         WHERE tag1 LIKE '%' || :query || '%' 
            OR tag2 LIKE '%' || :query || '%' 
            OR tag3 LIKE '%' || :query || '%' 
            OR tag4 LIKE '%' || :query || '%' 
            OR tag5 LIKE '%' || :query || '%'
+           OR location LIKE '%' || :query || '%'
         ORDER BY dateAdded DESC
     """)
     suspend fun searchPhotosByTag(query: String): List<PhotoEntity>
 }
 
-@Database(entities = [PhotoEntity::class], version = 3, exportSchema = false)
+@Database(entities = [PhotoEntity::class], version = 5, exportSchema = false)
 abstract class PhotoDatabase : RoomDatabase() {
     abstract fun photoDao(): PhotoDao
 

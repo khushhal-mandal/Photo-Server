@@ -1,10 +1,14 @@
+# Test Info
 ping <YOUR_PHONE_IP_ADDRESS>
 curl http://<YOUR_PHONE_IP_ADDRESS>:8080/info
+
+# List Tools
 curl -X POST http://<YOUR_PHONE_IP_ADDRESS>:8080/mcp \
      -H "Content-Type: application/json" \
      -d '{"jsonrpc": "2.0", "id": "1", "method": "tools/list"}'
 
-curl -X POST http://192.168.1.66:8080/mcp \
+# Search by Tag
+curl -X POST http://<YOUR_PHONE_IP_ADDRESS>:8080/mcp \
      -H "Content-Type: application/json" \
      -d '{
        "jsonrpc": "2.0",
@@ -13,10 +17,76 @@ curl -X POST http://192.168.1.66:8080/mcp \
        "params": {
          "name": "search_photos",
          "arguments": {
-           "tag": "vehicle"
+           "query": "vehicle"
          }
        }
      }'
 
+# Search by City (e.g., Noida)
+curl -X POST http://192.168.1.66:8080/mcp \
+     -H "Content-Type: application/json" \
+     -d '{
+       "jsonrpc": "2.0",
+       "id": "3",
+       "method": "tools/call",
+       "params": {
+         "name": "search_photos",
+         "arguments": {
+           "query": "noida"
+         }
+       }
+     }'
 
-    npx @modelcontextprotocol/inspector
+# Search by Tag + Time of Day (e.g., vehicle at night)
+curl -X POST http://192.168.1.66:8080/mcp \
+     -H "Content-Type: application/json" \
+     -d '{
+       "jsonrpc": "2.0",
+       "id": "4",
+       "method": "tools/call",
+       "params": {
+         "name": "search_photos",
+         "arguments": {
+           "query": "vehicle",
+           "timeOfDay": "night"
+         }
+       }
+     }'
+
+# Search by Date Range (e.g., Jan 2025 to Feb 2025)
+# Timestamps in seconds: Jan 1 2025 (1735689600) to Feb 28 2025 (1740700800)
+curl -X POST http://192.168.1.66:8080/mcp \
+     -H "Content-Type: application/json" \
+     -d '{
+       "jsonrpc": "2.0",
+       "id": "5",
+       "method": "tools/call",
+       "params": {
+         "name": "search_photos",
+         "arguments": {
+           "startTime": 1735689600,
+           "endTime": 1740700800
+         }
+       }
+     }'
+
+# Search by City + Time of Day + Tag (e.g., Noida evening vehicle)
+curl -X POST http://<YOUR_PHONE_IP_ADDRESS>:8080/mcp \
+     -H "Content-Type: application/json" \
+     -d '{
+       "jsonrpc": "2.0",
+       "id": "6",
+       "method": "tools/call",
+       "params": {
+         "name": "search_photos",
+         "arguments": {
+           "query": "vehicle",
+           "timeOfDay": "evening"
+         }
+       }
+     }'
+
+# Note: Since 'Noida' is part of the query logic in the DAO, you can search for "vehicle" and filter by location by putting "noida" in the query if needed, or by relying on the unified query field.
+
+# Launch MCP Inspector
+npx @modelcontextprotocol/inspector

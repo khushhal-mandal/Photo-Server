@@ -51,37 +51,50 @@ class MainActivity : ComponentActivity() {
         setContent {
             PhotoServerTheme {
                 val context = LocalContext.current
-                var hasPermission by remember {
+                
+                val permissionsToRequest = remember {
+                    val list = mutableListOf<String>()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        list.add(Manifest.permission.READ_MEDIA_IMAGES)
+                    } else {
+                        list.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        list.add(Manifest.permission.ACCESS_MEDIA_LOCATION)
+                    }
+                    list.toTypedArray()
+                }
+
+                var hasPermissions by remember {
                     mutableStateOf(
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED
-                        } else {
-                            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+                        permissionsToRequest.all {
+                            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
                         }
                     )
                 }
 
                 val launcher = rememberLauncherForActivityResult(
-                    contract = ActivityResultContracts.RequestPermission()
-                ) { isGranted: Boolean ->
-                    hasPermission = isGranted
+                    contract = ActivityResultContracts.RequestMultiplePermissions()
+                ) { permissions ->
+                    hasPermissions = permissions.values.all { it }
                 }
 
                 LaunchedEffect(Unit) {
-                    if (!hasPermission) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            launcher.launch(Manifest.permission.READ_MEDIA_IMAGES)
-                        } else {
-                            launcher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-                        }
+                    if (!hasPermissions) {
+                        launcher.launch(permissionsToRequest)
                     }
                 }
 
-                if (hasPermission) {
+                if (hasPermissions) {
                     PhotoGalleryScreen()
                 } else {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Permission required to access photos")
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Permissions required to access photos and location metadata")
+                            Button(onClick = { launcher.launch(permissionsToRequest) }) {
+                                Text("Grant Permissions")
+                            }
+                        }
                     }
                 }
             }
@@ -208,17 +221,10 @@ fun PhotoItem(photo: PhotoEntity, showTags: Boolean, onClick: () -> Unit) {
                         .fillMaxWidth()
                 ) {
                     if (isTagged) {
-                        tagsWithConfidence.take(2).forEach { (tag, confidence) ->
+                        tagsWithConfidence.take(3).forEach { (tag, confidence) ->
                             val confidenceStr = confidence?.let { " (${(it * 100).toInt()}%)" } ?: ""
                             Text(
                                 text = "$tag$confidenceStr",
-                                color = Color.White,
-                                fontSize = 10.sp
-                            )
-                        }
-                        if (tagsWithConfidence.size > 2) {
-                            Text(
-                                text = "+${tagsWithConfidence.size - 2} more",
                                 color = Color.White,
                                 fontSize = 10.sp
                             )
@@ -258,7 +264,6 @@ fun FullScreenImageOverlay(photo: PhotoEntity, onDismiss: () -> Unit) {
                 contentScale = ContentScale.Fit
             )
 
-            // Close Button
             IconButton(
                 onClick = onDismiss,
                 modifier = Modifier
@@ -269,7 +274,6 @@ fun FullScreenImageOverlay(photo: PhotoEntity, onDismiss: () -> Unit) {
                 Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
             }
 
-            // Info Button
             IconButton(
                 onClick = { showInfo = true },
                 modifier = Modifier
@@ -309,6 +313,12 @@ fun ImageInfoDialog(photo: PhotoEntity, onDismiss: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 InfoRow(label = "Name", value = photo.name)
                 InfoRow(label = "Date", value = dateString)
+                InfoRow(label = "Time of Day", value = photo.timeOfDay ?: "Unknown")
+                
+                if (photo.location != null) {
+                    InfoRow(label = "Location", value = photo.location)
+                }
+
                 InfoRow(label = "URI", value = photo.uri)
                 
                 if (tagsWithConfidence.isNotEmpty()) {

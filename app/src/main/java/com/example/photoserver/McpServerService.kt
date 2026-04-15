@@ -91,7 +91,6 @@ class McpServerService : Service() {
                     call.respond(response)
                 }
                 
-                // Discovery endpoint for convenience
                 get("/info") {
                     call.respond(mapOf("status" to "running", "server" to "PhotoServer MCP"))
                 }
@@ -120,16 +119,33 @@ class McpServerService : Service() {
                     putJsonArray("tools") {
                         addJsonObject {
                             put("name", "search_photos")
-                            put("description", "Search for photos in the gallery based on AI-generated tags (e.g., 'birthday', 'dog', 'mountain').")
+                            put("description", "Search for photos based on tags, location (city), time of day (morning, afternoon, evening, night), or date range.")
                             put("inputSchema", buildJsonObject {
                                 put("type", "object")
                                 put("properties", buildJsonObject {
-                                    putJsonObject("tag") {
+                                    putJsonObject("query") {
                                         put("type", "string")
-                                        put("description", "The tag or keyword to search for.")
+                                        put("description", "Tag, keyword, or city name to search for.")
+                                    }
+                                    putJsonObject("timeOfDay") {
+                                        put("type", "string")
+                                        put("enum", buildJsonArray {
+                                            add("morning")
+                                            add("afternoon")
+                                            add("evening")
+                                            add("night")
+                                        })
+                                        put("description", "Filter by time of day.")
+                                    }
+                                    putJsonObject("startTime") {
+                                        put("type", "integer")
+                                        put("description", "Start timestamp in seconds.")
+                                    }
+                                    putJsonObject("endTime") {
+                                        put("type", "integer")
+                                        put("description", "End timestamp in seconds.")
                                     }
                                 })
-                                putJsonArray("required") { add("tag") }
                             })
                         }
                     }
@@ -140,8 +156,17 @@ class McpServerService : Service() {
                 val toolName = params?.get("name")?.jsonPrimitive?.content
                 if (toolName == "search_photos") {
                     val args = params?.get("arguments")?.jsonObject
-                    val tag = args?.get("tag")?.jsonPrimitive?.content ?: ""
-                    val photos = database.photoDao().searchPhotosByTag(tag)
+                    val query = args?.get("query")?.jsonPrimitive?.contentOrNull
+                    val timeOfDay = args?.get("timeOfDay")?.jsonPrimitive?.contentOrNull
+                    val startTime = args?.get("startTime")?.jsonPrimitive?.longOrNull
+                    val endTime = args?.get("endTime")?.jsonPrimitive?.longOrNull
+
+                    val photos = database.photoDao().searchPhotos(
+                        tagQuery = query,
+                        timeOfDay = timeOfDay,
+                        startTime = startTime,
+                        endTime = endTime
+                    )
                     
                     McpResponse(
                         id = request.id,
@@ -149,7 +174,7 @@ class McpServerService : Service() {
                             putJsonArray("content") {
                                 addJsonObject {
                                     put("type", "text")
-                                    put("text", "Found ${photos.size} photos for tag '$tag'.")
+                                    put("text", "Found ${photos.size} photos matching criteria.")
                                 }
                                 photos.forEach { photo ->
                                     val tagsWithConfidence = listOfNotNull(
@@ -160,9 +185,11 @@ class McpServerService : Service() {
                                         photo.tag5?.let { "$it (${(photo.tag5Confidence?.times(100))?.toInt()}%)" }
                                     ).joinToString(", ")
                                     
+                                    val loc = photo.location ?: "Unknown"
+                                    
                                     addJsonObject {
                                         put("type", "text")
-                                        put("text", "Photo: ${photo.name}, Tags: [$tagsWithConfidence], Date: ${java.util.Date(photo.dateAdded * 1000)}, URI: ${photo.uri}")
+                                        put("text", "Photo: ${photo.name}, Tags: [$tagsWithConfidence], Time: ${photo.timeOfDay}, Location: $loc, Date: ${java.util.Date(photo.dateAdded * 1000)}, URI: ${photo.uri}")
                                     }
                                 }
                             }
